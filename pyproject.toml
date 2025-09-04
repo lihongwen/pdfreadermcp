@@ -1,0 +1,41 @@
+[project]
+name = "pdfreadermcp"
+version = "0.1.0"
+description = "MCP server for PDF reading with text extraction and OCR support using PaddleOCR"
+readme = "README.md"
+authors = [
+    { name = "lihongwen", email = "1062316792@qq.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "pdfplumber>=0.11.0",
+    "pdf2image>=1.17.0",
+    "paddlepaddle>=2.6.0",
+    "paddleocr>=2.7.3",
+    "langchain-text-splitters>=0.2.0",
+    "pillow>=10.0.0"
+]
+
+[project.scripts]
+pdfreadermcp = "pdfreadermcp:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+extra-index-url = [
+    "https://mirrors.aliyun.com/pypi/simple/",
+    "https://pypi.mirrors.ustc.edu.cn/simple/",
+    "https://pypi.douban.com/simple/"
+]
+
+[tool.uv.sources]
+paddlepaddle = { index = "paddlepaddle" }
+
+[[tool.uv.index]]
+name = "paddlepaddle"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+explicit = true
