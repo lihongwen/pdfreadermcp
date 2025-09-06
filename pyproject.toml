@@ -1,7 +1,7 @@
 [project]
 name = "pdfreadermcp"
 version = "0.1.0"
-description = "MCP server for PDF reading with text extraction and OCR support using PaddleOCR"
+description = "MCP server for PDF reading with text extraction and OCR support using EasyOCR"
 readme = "README.md"
 authors = [
     { name = "lihongwen", email = "1062316792@qq.com" }
@@ -11,10 +11,11 @@ dependencies = [
     "mcp[cli]>=1.2.0",
     "pdfplumber>=0.11.0",
     "pdf2image>=1.17.0",
-    "paddlepaddle>=2.6.0",
-    "paddleocr>=2.7.3",
+    "easyocr>=1.7.0",
     "langchain-text-splitters>=0.2.0",
-    "pillow>=10.0.0"
+    "pillow>=10.0.0",
+    "numpy>=1.21.0",
+    "torch>=1.9.0"
 ]
 
 [project.scripts]
@@ -31,11 +32,3 @@ extra-index-url = [
     "https://pypi.mirrors.ustc.edu.cn/simple/",
     "https://pypi.douban.com/simple/"
 ]
-
-[tool.uv.sources]
-paddlepaddle = { index = "paddlepaddle" }
-
-[[tool.uv.index]]
-name = "paddlepaddle"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-explicit = true

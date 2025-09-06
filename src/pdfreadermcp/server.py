@@ -1,5 +1,5 @@
 """
-MCP Server for PDF reading with text extraction and OCR support using FastMCP.
+MCP Server for PDF reading with text extraction and OCR support using EasyOCR.
 """
 
 from typing import Any
@@ -55,15 +55,17 @@ async def ocr_pdf(
     file_path: str,
     pages: str = None,
     language: str = "ch_sim,en",
-    chunk_size: int = 1000
+    chunk_size: int = 1000,
+    use_gpu: bool = False
 ) -> str:
-    """Perform OCR on PDF pages using PaddleOCR for scanned documents.
+    """Perform OCR on PDF pages using EasyOCR for scanned documents.
     
     Args:
         file_path: Path to the PDF file
         pages: Page range (e.g., '1,3,5-10,-1' for pages 1, 3, 5 to 10, and last page)
         language: OCR language codes (e.g., 'ch_sim,en' for Chinese and English)
         chunk_size: Maximum size of text chunks
+        use_gpu: Whether to use GPU acceleration (default: False for CPU-only mode)
         
     Returns:
         JSON string with OCR results and metadata
@@ -73,7 +75,8 @@ async def ocr_pdf(
             file_path=file_path,
             pages=pages,
             language=language,
-            chunk_size=chunk_size
+            chunk_size=chunk_size,
+            use_gpu=use_gpu
         )
         return result
     except Exception as e:
@@ -81,5 +84,5 @@ async def ocr_pdf(
         return json.dumps({
             'success': False,
             'error': f'PDF OCR extraction failed: {str(e)}',
-            'extraction_method': 'paddleocr'
+            'extraction_method': 'easyocr'
         }, ensure_ascii=False, indent=2)

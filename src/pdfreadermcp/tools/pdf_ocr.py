@@ -1,5 +1,5 @@
 """
-PDF OCR tool using PaddleOCR for scanned document recognition.
+PDF OCR tool using EasyOCR for scanned document recognition.
 """
 
 import asyncio
@@ -13,9 +13,9 @@ except ImportError:
     pdf2image = None
 
 try:
-    from paddleocr import PaddleOCR
+    import easyocr
 except ImportError:
-    PaddleOCR = None
+    easyocr = None
 
 from PIL import Image
 import numpy as np
@@ -27,58 +27,61 @@ from ..utils.cache import PDFCache
 
 class PDFOCR:
     """
-    PDF OCR tool using PaddleOCR for processing scanned documents and images.
+    PDF OCR tool using EasyOCR for processing scanned documents and images.
     """
     
     def __init__(self):
         """Initialize the PDF OCR tool with cache and OCR engine."""
         self.cache = PDFCache(max_entries=30, max_age_seconds=3600)  # 1 hour cache
         self.file_handler = FileHandler()
-        self._ocr_engine = None
+        self._ocr_reader = None
     
-    def _get_ocr_engine(self, language: str = "ch_sim,en") -> Any:
+    def _get_ocr_reader(self, languages: List[str] = ['ch_sim', 'en'], use_gpu: bool = False) -> Any:
         """
-        Get or create PaddleOCR engine instance.
+        Get or create EasyOCR Reader instance.
         
         Args:
-            language: Language codes for OCR
+            languages: List of language codes for OCR
+            use_gpu: Whether to use GPU acceleration
             
         Returns:
-            PaddleOCR instance
+            EasyOCR Reader instance
         """
-        if PaddleOCR is None:
-            raise ImportError("PaddleOCR is not installed. Please install it with: pip install paddleocr paddlepaddle")
+        if easyocr is None:
+            raise ImportError("EasyOCR is not installed. Please install it with: pip install easyocr")
         
-        # Create new engine if needed or language changed
-        if self._ocr_engine is None or getattr(self._ocr_engine, '_language', '') != language:
+        # Create new reader if needed or languages changed
+        current_languages = getattr(self._ocr_reader, '_languages', [])
+        if self._ocr_reader is None or current_languages != languages:
             try:
-                # Initialize PaddleOCR with specified language
-                self._ocr_engine = PaddleOCR(
-                    use_angle_cls=True,  # Enable text angle classification
-                    lang=language,       # Language setting
-                    show_log=False       # Suppress verbose logging
+                # Initialize EasyOCR Reader with specified languages
+                self._ocr_reader = easyocr.Reader(
+                    lang_list=languages,
+                    gpu=use_gpu
                 )
-                self._ocr_engine._language = language  # Store language for comparison
+                self._ocr_reader._languages = languages  # Store languages for comparison
             except Exception as e:
-                raise RuntimeError(f"Failed to initialize PaddleOCR: {str(e)}")
+                raise RuntimeError(f"Failed to initialize EasyOCR: {str(e)}")
         
-        return self._ocr_engine
+        return self._ocr_reader
     
     async def extract_text_ocr(
         self,
         file_path: Union[str, Path],
         pages: Optional[str] = None,
         language: str = "ch_sim,en",
-        chunk_size: int = 1000
+        chunk_size: int = 1000,
+        use_gpu: bool = False
     ) -> str:
         """
-        Extract text from PDF using OCR with PaddleOCR.
+        Extract text from PDF using OCR with EasyOCR.
         
         Args:
             file_path: Path to PDF file
             pages: Page range string (e.g., "1,3,5-10,-1")
             language: OCR language codes (e.g., "ch_sim,en")
             chunk_size: Maximum size of text chunks
+            use_gpu: Whether to use GPU acceleration
             
         Returns:
             JSON string with OCR results and metadata
@@ -94,14 +97,15 @@ class PDFOCR:
             cache_key_params = {
                 'pages': pages,
                 'language': language,
-                'chunk_size': chunk_size
+                'chunk_size': chunk_size,
+                'use_gpu': use_gpu
             }
             cached_result = self.cache.get(pdf_path, 'ocr_extract', **cache_key_params)
             if cached_result:
                 return cached_result
             
             # Perform OCR
-            result = await self._perform_ocr_extraction(pdf_path, pages, language, chunk_size)
+            result = await self._perform_ocr_extraction(pdf_path, pages, language, chunk_size, use_gpu)
             
             # Cache the result
             self.cache.set(pdf_path, 'ocr_extract', result, **cache_key_params)
@@ -116,7 +120,8 @@ class PDFOCR:
         pdf_path: Path,
         pages_str: Optional[str],
         language: str,
-        chunk_size: int
+        chunk_size: int,
+        use_gpu: bool
     ) -> str:
         """Perform OCR extraction from PDF pages."""
         
@@ -131,8 +136,11 @@ class PDFOCR:
             if not page_numbers:
                 return self._error_response("No valid pages specified")
             
-            # Get OCR engine
-            ocr_engine = self._get_ocr_engine(language)
+            # Parse language string to list
+            languages = [lang.strip() for lang in language.split(',')]
+            
+            # Get OCR reader
+            ocr_reader = self._get_ocr_reader(languages, use_gpu)
             
             # Process each page
             pages_content = []
@@ -144,11 +152,11 @@ class PDFOCR:
                 # Get page image
                 page_image = images[page_num]
                 
-                # Convert PIL Image to numpy array for PaddleOCR
+                # Convert PIL Image to numpy array for EasyOCR
                 image_array = np.array(page_image)
                 
                 # Perform OCR
-                ocr_results = ocr_engine.ocr(image_array, cls=True)
+                ocr_results = ocr_reader.readtext(image_array)
                 
                 # Extract text and confidence scores
                 page_text, confidence_info = self._process_ocr_results(ocr_results)
@@ -188,7 +196,7 @@ class PDFOCR:
                     for chunk in chunks
                 ],
                 'summary': chunker.get_chunks_summary(chunks),
-                'extraction_method': 'paddleocr'
+                'extraction_method': 'easyocr'
             }
             
             # Add OCR-specific summary
@@ -212,24 +220,26 @@ class PDFOCR:
     
     def _process_ocr_results(self, ocr_results: List) -> tuple[str, Dict[str, Any]]:
         """
-        Process raw OCR results from PaddleOCR.
+        Process raw OCR results from EasyOCR.
         
         Args:
-            ocr_results: Raw OCR results from PaddleOCR
+            ocr_results: Raw OCR results from EasyOCR
             
         Returns:
             Tuple of (extracted_text, confidence_info)
         """
-        if not ocr_results or not ocr_results[0]:
+        if not ocr_results:
             return "", {"avg_confidence": 0.0, "block_count": 0}
         
         text_blocks = []
         confidence_scores = []
         
-        for result in ocr_results[0]:  # PaddleOCR returns nested results
-            if len(result) >= 2:
-                text = result[1][0] if len(result[1]) >= 1 else ""
-                confidence = result[1][1] if len(result[1]) >= 2 else 0.0
+        # EasyOCR returns results as: [bbox, text, confidence]
+        for result in ocr_results:
+            if len(result) >= 3:
+                bbox = result[0]  # Bounding box coordinates
+                text = result[1]  # Recognized text
+                confidence = result[2]  # Confidence score
                 
                 if text.strip():  # Only add non-empty text
                     text_blocks.append(text.strip())
@@ -248,28 +258,6 @@ class PDFOCR:
         
         return extracted_text, confidence_info
     
-    def _preprocess_image(self, image: Image.Image) -> Image.Image:
-        """
-        Preprocess image to improve OCR accuracy.
-        
-        Args:
-            image: PIL Image object
-            
-        Returns:
-            Preprocessed PIL Image
-        """
-        # Convert to RGB if needed
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        
-        # You can add more preprocessing steps here:
-        # - Noise reduction
-        # - Contrast enhancement
-        # - Deskewing
-        # - Binarization
-        
-        return image
-    
     def _format_result(self, result: Dict[str, Any]) -> str:
         """Format result as JSON string."""
         return json.dumps(result, ensure_ascii=False, indent=2)
@@ -279,5 +267,5 @@ class PDFOCR:
         return json.dumps({
             'success': False,
             'error': message,
-            'extraction_method': 'paddleocr'
+            'extraction_method': 'easyocr'
         }, ensure_ascii=False, indent=2)
