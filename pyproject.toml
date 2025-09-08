@@ -15,7 +15,8 @@ dependencies = [
     "langchain-text-splitters>=0.2.0",
     "pillow>=10.0.0",
     "numpy>=1.21.0",
-    "torch>=1.9.0"
+    "torch>=1.9.0",
+    "torchvision>=0.23.0",
 ]
 
 [project.scripts]
@@ -30,5 +31,6 @@ index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 extra-index-url = [
     "https://mirrors.aliyun.com/pypi/simple/",
     "https://pypi.mirrors.ustc.edu.cn/simple/",
-    "https://pypi.douban.com/simple/"
+    "https://pypi.douban.com/simple/",
+    "https://download.pytorch.org/whl/cpu"
 ]

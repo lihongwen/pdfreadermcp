@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pdfreadermcp": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/home/lihongwen/project/pdfreadermcp",
+        "run",
+        "pdfreadermcp"
+      ]
+    }
+  }
+} 
