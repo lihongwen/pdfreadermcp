@@ -3,6 +3,6 @@ PDF processing tools.
 """
 
 from .pdf_reader import PDFReader
-from .pdf_ocr import PDFOCR
+from .pdf_operations import PDFOperations
 
-__all__ = ["PDFReader", "PDFOCR"]
+__all__ = ["PDFReader", "PDFOperations"]
